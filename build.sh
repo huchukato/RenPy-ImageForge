@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Build RenPy ImageForge: crea pacchetti per macOS, Linux e Windows.
 #
-# Su macOS: builda .app con PyInstaller + crea DMG e ZIP
-# Su Linux: builda binario con PyInstaller + crea TAR.GZ
-# Su Windows: builda .exe con PyInstaller + crea ZIP
+# Nomi file generati (con versione letta da batch_cropper/__init__.py):
+#   RenPy-ImageForge-v0.2.0-macOS.dmg        (installer macOS)
+#   RenPy-ImageForge-v0.2.0-macOS.zip        (macOS generico)
+#   RenPy-ImageForge-v0.2.0-Linux.tar.gz     (binario Linux)
+#   RenPy-ImageForge-v0.2.0-Windows.zip      (binario Windows)
+#   RenPy-ImageForge-v0.2.0-source.tar.gz    (sorgente per Linux)
+#   RenPy-ImageForge-v0.2.0-source.zip       (sorgente per Windows)
 #
 # PyInstaller non puo' cross-compilare: ogni piattaforma va buildata
-# sulla piattaforma stessa. Usa GitHub Actions (.github/workflows/build.yml)
-# per buildare automaticamente su tutte e 3.
+# sulla piattaforma stessa.
 #
 # Uso:
 #   ./build.sh              # build completa + pacchetti
@@ -17,19 +20,22 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP_NAME="RenPy ImageForge"
-APP_ID="com.imageforge.renpy"
+PKG_NAME="RenPy-ImageForge"
 ICON_PATH="img/logo.icns"
 VENDOR_DIR="vendor/realesrgan-ncnn-vulkan"
 DIST_DIR="dist"
 PLATFORM=$(uname -s)
 
-# Parse arg
-MODE="${1:-all}"
-
+# Legge la versione da batch_cropper/__init__.py
+VERSION=$(python3 -c "from batch_cropper import __version__; print(__version__)")
 echo "=== RenPy ImageForge Build ==="
+echo "Versione: v${VERSION}"
 echo "Piattaforma: $PLATFORM"
-echo "Modalita': $MODE"
+echo "Modalita': ${1:-all}"
 echo ""
+
+# Prefisso nome file: RenPy-ImageForge-v0.2.0-
+PKG_PREFIX="${PKG_NAME}-v${VERSION}"
 
 # ---------------------------------------------------------------------------
 # 1. Dipendenze di build
@@ -92,10 +98,10 @@ ENTRYEOF
         # macOS: .app con icona
         if [ -f "$ICON_PATH" ]; then
             uv run pyinstaller "${COMMON_ARGS[@]}" "--icon=$ICON_PATH" \
-                --osx-bundle-identifier "$APP_ID"
+                --osx-bundle-identifier "com.imageforge.renpy"
         else
             uv run pyinstaller "${COMMON_ARGS[@]}" \
-                --osx-bundle-identifier "$APP_ID"
+                --osx-bundle-identifier "com.imageforge.renpy"
         fi
     elif [ "$PLATFORM" = "Linux" ]; then
         # Linux: directory standalone
@@ -123,20 +129,20 @@ package_macos() {
 
     local APP_PATH="$DIST_DIR/${APP_NAME}.app"
 
-    # DMG
+    # DMG (installer macOS)
     echo "  Creazione DMG..."
-    local DMG_PATH="$DIST_DIR/${APP_NAME}-macOS.dmg"
+    local DMG_PATH="$DIST_DIR/${PKG_PREFIX}-macOS.dmg"
     hdiutil create -volname "$APP_NAME" \
         -srcfolder "$APP_PATH" \
         -ov -format UDZO \
         "$DMG_PATH" 2>/dev/null
     echo "  DMG: $DMG_PATH"
 
-    # ZIP (per distribuzione generica macOS)
+    # ZIP (macOS generico)
     echo "  Creazione ZIP..."
-    local ZIP_PATH="$DIST_DIR/${APP_NAME}-macOS.zip"
+    local ZIP_PATH="$DIST_DIR/${PKG_PREFIX}-macOS.zip"
     cd "$DIST_DIR"
-    zip -r -y "${APP_NAME}-macOS.zip" "${APP_NAME}.app" 2>/dev/null
+    zip -r -y "${PKG_PREFIX}-macOS.zip" "${APP_NAME}.app" 2>/dev/null
     cd ..
     echo "  ZIP: $ZIP_PATH"
 }
@@ -146,11 +152,11 @@ package_linux() {
 
     local APP_PATH="$DIST_DIR/${APP_NAME}"
 
-    # TAR.GZ
+    # TAR.GZ (binario Linux)
     echo "  Creazione TAR.GZ..."
-    local TAR_PATH="$DIST_DIR/${APP_NAME}-Linux.tar.gz"
+    local TAR_PATH="$DIST_DIR/${PKG_PREFIX}-Linux.tar.gz"
     cd "$DIST_DIR"
-    tar -czf "${APP_NAME}-Linux.tar.gz" "${APP_NAME}" 2>/dev/null
+    tar -czf "${PKG_PREFIX}-Linux.tar.gz" "${APP_NAME}" 2>/dev/null
     cd ..
     echo "  TAR.GZ: $TAR_PATH"
 }
@@ -160,15 +166,14 @@ package_windows() {
 
     local APP_PATH="$DIST_DIR/${APP_NAME}"
 
-    # ZIP
+    # ZIP (binario Windows)
     echo "  Creazione ZIP..."
-    local ZIP_PATH="$DIST_DIR/${APP_NAME}-Windows.zip"
+    local ZIP_PATH="$DIST_DIR/${PKG_PREFIX}-Windows.zip"
     cd "$DIST_DIR"
-    # Su Windows usa 7z o PowerShell Compress-Archive
     if command -v 7z &>/dev/null; then
-        7z a -tzip "${APP_NAME}-Windows.zip" "${APP_NAME}" 2>/dev/null
+        7z a -tzip "${PKG_PREFIX}-Windows.zip" "${APP_NAME}" 2>/dev/null
     else
-        powershell -Command "Compress-Archive -Path '${APP_NAME}' -DestinationPath '${APP_NAME}-Windows.zip'"
+        powershell -Command "Compress-Archive -Path '${APP_NAME}' -DestinationPath '${PKG_PREFIX}-Windows.zip'"
     fi
     cd ..
     echo "  ZIP: $ZIP_PATH"
@@ -180,7 +185,7 @@ package_windows() {
 package_source() {
     echo "[6/6] Distribuzione sorgente (cross-platform)..."
 
-    local SRC_DIR="$DIST_DIR/${APP_NAME}-source"
+    local SRC_DIR="$DIST_DIR/${PKG_NAME}-v${VERSION}-source"
 
     # Copia i file sorgente (esclude build artifacts)
     mkdir -p "$SRC_DIR"
@@ -189,19 +194,19 @@ package_source() {
         --exclude='_entry.py' --exclude='.DS_Store' \
         . "$SRC_DIR/"
 
-    # Crea TAR.GZ per Linux
+    # TAR.GZ (sorgente per Linux)
     echo "  Creazione sorgente TAR.GZ..."
     cd "$DIST_DIR"
-    tar -czf "${APP_NAME}-source.tar.gz" "${APP_NAME}-source" 2>/dev/null
+    tar -czf "${PKG_PREFIX}-source.tar.gz" "${PKG_NAME}-v${VERSION}-source" 2>/dev/null
     cd ..
-    echo "  TAR.GZ: $DIST_DIR/${APP_NAME}-source.tar.gz"
+    echo "  TAR.GZ: $DIST_DIR/${PKG_PREFIX}-source.tar.gz"
 
-    # Crea ZIP per Windows
+    # ZIP (sorgente per Windows)
     echo "  Creazione sorgente ZIP..."
     cd "$DIST_DIR"
-    zip -r -y "${APP_NAME}-source.zip" "${APP_NAME}-source" 2>/dev/null
+    zip -r -y "${PKG_PREFIX}-source.zip" "${PKG_NAME}-v${VERSION}-source" 2>/dev/null
     cd ..
-    echo "  ZIP: $DIST_DIR/${APP_NAME}-source.zip"
+    echo "  ZIP: $DIST_DIR/${PKG_PREFIX}-source.zip"
 
     # Pulisci cartella sorgente temporanea
     rm -rf "$SRC_DIR"
@@ -210,6 +215,8 @@ package_source() {
 # ---------------------------------------------------------------------------
 # Esecuzione
 # ---------------------------------------------------------------------------
+MODE="${1:-all}"
+
 if [ "$MODE" = "--source" ]; then
     # Solo sorgente
     package_source
@@ -239,13 +246,7 @@ echo ""
 echo "=== Build completata ==="
 echo ""
 echo "Pacchetti creati in $DIST_DIR/:"
-ls -lh "$DIST_DIR"/${APP_NAME}* 2>/dev/null | awk '{print "  " $NF " (" $5 ")"}'
+ls -lh "$DIST_DIR"/${PKG_PREFIX}* 2>/dev/null | awk '{print "  " $NF " (" $5 ")"}'
 echo ""
 echo "Per avviare l'app (macOS):"
 echo "  open \"$DIST_DIR/${APP_NAME}.app\""
-echo ""
-echo "Per buildare su altre piattaforme:"
-echo "  Linux:  esegui ./build.sh su Linux"
-echo "  Windows: esegui ./build.sh su Windows (Git Bash/MSYS2)"
-echo ""
-echo "Oppure usa GitHub Actions per build automatiche cross-platform."
