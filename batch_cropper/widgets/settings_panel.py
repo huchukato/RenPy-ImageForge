@@ -1,4 +1,4 @@
-"""Pannello impostazioni: aspect ratio, anchor, resize, output, upscaling."""
+"""Settings panel: aspect ratio, anchor, resize, output, upscaling."""
 
 from __future__ import annotations
 
@@ -13,10 +13,11 @@ from PySide6.QtWidgets import (
 
 from ..cropper import CropSettings, Anchor, ASPECT_PRESETS
 from ..upscaler import UpscaleSettings, MODELS, VALID_SCALES, status_message
+from ..i18n import tr
 
 
 class AnchorGrid(QWidget):
-    """Griglia 3x3 di bottoni per selezionare l'anchor del crop."""
+    """3x3 grid of buttons to select the crop anchor."""
 
     changed = Signal()
 
@@ -57,7 +58,7 @@ class AnchorGrid(QWidget):
 
 
 class SettingsPanel(QWidget):
-    """Pannello completo di impostazioni. Emette `changed` a ogni modifica."""
+    """Complete settings panel. Emits `changed` on every modification."""
 
     changed = Signal()
 
@@ -65,7 +66,8 @@ class SettingsPanel(QWidget):
         super().__init__(parent)
         self._build_ui()
         self._wire_signals()
-        self._on_aspect_changed()  # stato iniziale
+        self._on_aspect_changed()
+        self.retranslate_ui()
 
     # ---- UI ----
     def _build_ui(self):
@@ -73,30 +75,21 @@ class SettingsPanel(QWidget):
         root.setContentsMargins(8, 8, 8, 8)
         root.setSpacing(8)
 
-        # --- Preset rapidi ---
-        preset_group = QGroupBox("Preset rapido")
-        preset_layout = QHBoxLayout(preset_group)
+        # --- Quick presets ---
+        self.preset_group = QGroupBox()
+        preset_layout = QHBoxLayout(self.preset_group)
         self.preset_1080p = QPushButton("Full HD 1080p")
-        self.preset_1080p.setToolTip(
-            "Crop 16:9 + upscale AI x2 + resize 1920x1080\n"
-            "Pipeline: crop -> upscale -> resize al target esatto")
         self.preset_1080p.clicked.connect(lambda: self._apply_preset("1080p"))
         self.preset_1440p = QPushButton("1440p")
-        self.preset_1440p.setToolTip("Crop 16:9 + upscale AI x2 + resize 2560x1440")
         self.preset_1440p.clicked.connect(lambda: self._apply_preset("1440p"))
         self.preset_4k = QPushButton("4K UHD")
-        self.preset_4k.setToolTip("Crop 16:9 + upscale AI x3 + resize 3840x2160")
         self.preset_4k.clicked.connect(lambda: self._apply_preset("4k"))
         for b in (self.preset_1080p, self.preset_1440p, self.preset_4k):
             preset_layout.addWidget(b)
-        root.addWidget(preset_group)
+        root.addWidget(self.preset_group)
 
-        # --- Nota pipeline ---
-        self.note_label = QLabel(
-            "Pipeline: <b>crop</b> (aspect ratio) &rarr; <b>upscale AI</b> (x2/x3/x4) "
-            "&rarr; <b>resize finale</b> al target esatto.\n"
-            "L'AI porta sopra il target, il resize down conserva il dettaglio."
-        )
+        # --- Pipeline note ---
+        self.note_label = QLabel()
         self.note_label.setWordWrap(True)
         self.note_label.setStyleSheet(
             "QLabel{color:#b89878;font-size:10px;padding:4px;background:#2a2621;"
@@ -104,16 +97,17 @@ class SettingsPanel(QWidget):
         root.addWidget(self.note_label)
 
         # --- Crop ---
-        crop_group = QGroupBox("Crop")
-        crop_layout = QFormLayout(crop_group)
+        self.crop_group = QGroupBox()
+        crop_layout = QFormLayout(self.crop_group)
 
         self.aspect_combo = QComboBox()
-        self.aspect_combo.addItem("Nessuno (no crop)", "none")
+        self.aspect_combo.addItem("", "none")
         for name in ASPECT_PRESETS:
             self.aspect_combo.addItem(name, name)
-        self.aspect_combo.addItem("Custom...", "custom")
+        self.aspect_combo.addItem("", "custom")
         self.aspect_combo.setCurrentText("16:9")
-        crop_layout.addRow("Aspect ratio:", self.aspect_combo)
+        self._aspect_label = QLabel()
+        crop_layout.addRow(self._aspect_label, self.aspect_combo)
 
         self.custom_w = QSpinBox()
         self.custom_w.setRange(1, 9999)
@@ -129,18 +123,20 @@ class SettingsPanel(QWidget):
         custom_row.addStretch()
         self.custom_widget = QWidget()
         self.custom_widget.setLayout(custom_row)
-        crop_layout.addRow("Custom W:H:", self.custom_widget)
+        self._custom_label = QLabel()
+        crop_layout.addRow(self._custom_label, self.custom_widget)
 
         self.anchor_grid = AnchorGrid()
-        crop_layout.addRow("Posizione:", self.anchor_grid)
+        self._anchor_label = QLabel()
+        crop_layout.addRow(self._anchor_label, self.anchor_grid)
 
-        root.addWidget(crop_group)
+        root.addWidget(self.crop_group)
 
-        # --- Resize finale ---
-        resize_group = QGroupBox("Resize finale (dopo crop)")
-        resize_layout = QFormLayout(resize_group)
+        # --- Final resize ---
+        self.resize_group = QGroupBox()
+        resize_layout = QFormLayout(self.resize_group)
 
-        self.resize_check = QCheckBox("Abilita resize")
+        self.resize_check = QCheckBox()
         resize_layout.addRow(self.resize_check)
 
         self.resize_w = QSpinBox()
@@ -159,21 +155,23 @@ class SettingsPanel(QWidget):
         rh.addStretch()
         self.resize_widget = QWidget()
         self.resize_widget.setLayout(rh)
-        resize_layout.addRow("Dimensione (auto=proporzionale):", self.resize_widget)
+        self._dim_label = QLabel()
+        resize_layout.addRow(self._dim_label, self.resize_widget)
 
-        self.resize_lock = QCheckBox("Mantieni proporzioni (auto altezza)")
+        self.resize_lock = QCheckBox()
         self.resize_lock.setChecked(True)
         resize_layout.addRow(self.resize_lock)
 
-        root.addWidget(resize_group)
+        root.addWidget(self.resize_group)
 
         # --- Output ---
-        out_group = QGroupBox("Output")
-        out_layout = QFormLayout(out_group)
+        self.out_group = QGroupBox()
+        out_layout = QFormLayout(self.out_group)
 
         self.format_combo = QComboBox()
         self.format_combo.addItems(["webp", "png", "jpg"])
-        out_layout.addRow("Formato:", self.format_combo)
+        self._format_label = QLabel()
+        out_layout.addRow(self._format_label, self.format_combo)
 
         self.quality_slider = QSlider(Qt.Horizontal)
         self.quality_slider.setRange(1, 100)
@@ -185,69 +183,65 @@ class SettingsPanel(QWidget):
         qh.addWidget(self.quality_label)
         q_widget = QWidget()
         q_widget.setLayout(qh)
-        out_layout.addRow("Qualità:", q_widget)
+        self._quality_label = QLabel()
+        out_layout.addRow(self._quality_label, q_widget)
 
         self.suffix_edit = QLineEdit()
-        self.suffix_edit.setPlaceholderText("(nessuno)")
-        out_layout.addRow("Suffisso nome:", self.suffix_edit)
+        self._suffix_label = QLabel()
+        out_layout.addRow(self._suffix_label, self.suffix_edit)
 
-        # --- Modalità in-place (sovrascrivi originali) ---
-        self.inplace_check = QCheckBox(
-            "Sovrascrivi originali (in-place)\n"
-            "Mantiene nome e posizione — ideale per Ren'Py")
-        self.inplace_check.setToolTip(
-            "Salta ogni immagine processata nello stesso path dell'originale,\n"
-            "mantenendo nome ed estensione. Il codice del gioco continua a\n"
-            "funzionare senza modifiche. Crea un backup prima di sovrascrivere.")
+        # --- In-place mode ---
+        self.inplace_check = QCheckBox()
         out_layout.addRow(self.inplace_check)
 
-        self.backup_label = QLabel(
-            "Backup automatico: ZIP in game/imageforge_backup.zip\n"
-            "(Ren'Py non legge i .zip, sicuro)")
+        self.backup_label = QLabel()
         self.backup_label.setStyleSheet(
             "QLabel{color:#b89878;font-size:10px;padding:2px;}")
         out_layout.addRow(self.backup_label)
 
-        # Destinazione (disabilitata se in-place)
+        # Destination (disabled if in-place)
         self.outdir_edit = QLineEdit()
-        self.outdir_edit.setPlaceholderText("Cartella di destinazione...")
-        browse_btn = QPushButton("Sfoglia...")
-        browse_btn.clicked.connect(self._pick_outdir)
+        self.browse_btn = QPushButton()
+        self.browse_btn.clicked.connect(self._pick_outdir)
         oh = QHBoxLayout()
         oh.setContentsMargins(0, 0, 0, 0)
         oh.addWidget(self.outdir_edit)
-        oh.addWidget(browse_btn)
+        oh.addWidget(self.browse_btn)
         oh_widget = QWidget()
         oh_widget.setLayout(oh)
         self.outdir_row = oh_widget
-        out_layout.addRow("Destinazione:", oh_widget)
+        self._dest_label = QLabel()
+        out_layout.addRow(self._dest_label, oh_widget)
 
-        root.addWidget(out_group)
+        root.addWidget(self.out_group)
 
-        # --- Upscaling AI ---
-        up_group = QGroupBox("Upscaling AI (Real-ESRGAN)")
-        up_layout = QFormLayout(up_group)
+        # --- AI Upscaling ---
+        self.up_group = QGroupBox()
+        up_layout = QFormLayout(self.up_group)
 
-        self.upscale_check = QCheckBox("Abilita upscaling dopo crop")
+        self.upscale_check = QCheckBox()
         up_layout.addRow(self.upscale_check)
 
         self.scale_combo = QComboBox()
         for s in VALID_SCALES:
             self.scale_combo.addItem(f"x{s}", s)
-        up_layout.addRow("Scala:", self.scale_combo)
+        self._scale_label = QLabel()
+        up_layout.addRow(self._scale_label, self.scale_combo)
 
         self.model_combo = QComboBox()
         for mid, desc in MODELS.items():
-            self.model_combo.addItem(f"{mid} — {desc}", mid)
-        up_layout.addRow("Modello:", self.model_combo)
+            self.model_combo.addItem(f"{mid} \u2014 {desc}", mid)
+        self._model_label = QLabel()
+        up_layout.addRow(self._model_label, self.model_combo)
 
         self.tile_spin = QSpinBox()
         self.tile_spin.setRange(0, 4096)
         self.tile_spin.setValue(0)
         self.tile_spin.setSpecialValueText("auto")
-        up_layout.addRow("Tile size:", self.tile_spin)
+        self._tile_label = QLabel()
+        up_layout.addRow(self._tile_label, self.tile_spin)
 
-        self.tta_check = QCheckBox("TTA (più qualità, più lento)")
+        self.tta_check = QCheckBox()
         up_layout.addRow(self.tta_check)
 
         self.upscale_status = QLabel(status_message())
@@ -255,8 +249,47 @@ class SettingsPanel(QWidget):
         self.upscale_status.setStyleSheet("color: #b89878; font-size: 10px;")
         up_layout.addRow(self.upscale_status)
 
-        root.addWidget(up_group)
+        root.addWidget(self.up_group)
         root.addStretch()
+
+    def retranslate_ui(self):
+        """Update all translatable strings."""
+        self.preset_group.setTitle(tr("preset_group"))
+        self.preset_1080p.setToolTip(tr("preset_1080p_tip"))
+        self.preset_1440p.setToolTip(tr("preset_1440p_tip"))
+        self.preset_4k.setToolTip(tr("preset_4k_tip"))
+        self.note_label.setText(tr("pipeline_note"))
+
+        self.crop_group.setTitle(tr("crop_group"))
+        self.aspect_combo.setItemText(0, tr("aspect_none"))
+        self.aspect_combo.setItemText(self.aspect_combo.count() - 1, tr("aspect_custom"))
+        self._aspect_label.setText(tr("aspect_ratio"))
+        self._custom_label.setText(tr("custom_wh"))
+        self._anchor_label.setText(tr("anchor_pos"))
+
+        self.resize_group.setTitle(tr("resize_group"))
+        self.resize_check.setText(tr("enable_resize"))
+        self._dim_label.setText(tr("dimension_auto"))
+        self.resize_lock.setText(tr("keep_ratio"))
+
+        self.out_group.setTitle(tr("output_group"))
+        self._format_label.setText(tr("format"))
+        self._quality_label.setText(tr("quality"))
+        self._suffix_label.setText(tr("suffix_name"))
+        self.suffix_edit.setPlaceholderText(tr("suffix_placeholder"))
+        self.inplace_check.setText(tr("inplace_check"))
+        self.inplace_check.setToolTip(tr("inplace_tip"))
+        self.backup_label.setText(tr("backup_label"))
+        self.outdir_edit.setPlaceholderText(tr("dest_placeholder"))
+        self.browse_btn.setText(tr("browse"))
+        self._dest_label.setText(tr("destination"))
+
+        self.up_group.setTitle(tr("upscale_group"))
+        self.upscale_check.setText(tr("enable_upscale"))
+        self._scale_label.setText(tr("scale"))
+        self._model_label.setText(tr("model"))
+        self._tile_label.setText(tr("tile_size"))
+        self.tta_check.setText(tr("tta"))
 
     # --- Signals ---
     def _wire_signals(self):
@@ -283,16 +316,12 @@ class SettingsPanel(QWidget):
         self.tta_check.toggled.connect(self.changed)
 
     def _apply_preset(self, name: str):
-        """Configura crop+upscale+resize per un target comune."""
-        # Blocca i signal per aggiornare tutto in un colpo solo
         widgets = [self.aspect_combo, self.resize_check, self.resize_w,
                    self.resize_h, self.upscale_check, self.scale_combo]
         for w in widgets:
             w.blockSignals(True)
 
-        # Crop 16:9 center
         self.aspect_combo.setCurrentText("16:9")
-        # anchor center (già default)
 
         if name == "1080p":
             target = (1920, 1080)
@@ -306,12 +335,10 @@ class SettingsPanel(QWidget):
         else:
             return
 
-        # Resize finale al target
         self.resize_check.setChecked(True)
         self.resize_w.setValue(target[0])
         self.resize_h.setValue(target[1])
 
-        # Upscale AI
         self.upscale_check.setChecked(True)
         idx = self.scale_combo.findData(scale)
         if idx >= 0:
@@ -320,7 +347,6 @@ class SettingsPanel(QWidget):
         for w in widgets:
             w.blockSignals(False)
 
-        # Aggiorna stati abilitato/disabilitato + emetti changed
         self._on_aspect_changed()
         self._on_resize_toggled(True)
         self._on_upscale_toggled(True)
@@ -338,7 +364,6 @@ class SettingsPanel(QWidget):
 
     def _on_resize_w_changed(self, val):
         if self.resize_lock.isChecked() and val != 0:
-            # aggiorna altezza in base all'aspect del crop corrente
             ar = self.aspect_ratio()
             if ar is not None:
                 self.resize_h.blockSignals(True)
@@ -370,14 +395,13 @@ class SettingsPanel(QWidget):
         self.changed.emit()
 
     def _on_inplace_toggled(self, on):
-        """Quando in-place è attivo, disabilita destinazione e suffisso."""
         self.outdir_row.setEnabled(not on)
         self.suffix_edit.setEnabled(not on)
-        self.format_combo.setEnabled(not on)  # in-place mantiene estensione originale
+        self.format_combo.setEnabled(not on)
         self.changed.emit()
 
     def _pick_outdir(self):
-        d = QFileDialog.getExistingDirectory(self, "Cartella di destinazione")
+        d = QFileDialog.getExistingDirectory(self, tr("select_dest_folder"))
         if d:
             self.outdir_edit.setText(d)
 
@@ -399,7 +423,6 @@ class SettingsPanel(QWidget):
         if self.resize_check.isChecked():
             w = self.resize_w.value() if self.resize_w.value() != self.resize_w.minimum() else None
             h = self.resize_h.value() if self.resize_h.value() != self.resize_h.minimum() else None
-            # specialValueText -> minimum value means "auto"
             if self.resize_w.value() == self.resize_w.minimum():
                 w = None
             if self.resize_h.value() == self.resize_h.minimum():
@@ -419,7 +442,7 @@ class SettingsPanel(QWidget):
             scale=self.scale_combo.currentData(),
             model=self.model_combo.currentData(),
             tile_size=self.tile_spin.value(),
-            output_format="png",  # intermedio di alta qualità
+            output_format="png",
             tta=self.tta_check.isChecked(),
         )
 

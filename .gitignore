@@ -31,3 +31,6 @@ Thumbs.db
 # Test
 test_*.py
 /tmp/
+
+# Forum posts (local only, not for GitHub)
+F95.md

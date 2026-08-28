@@ -20,6 +20,7 @@ from PIL import Image
 
 from .cropper import CropSettings, Anchor, process_image
 from .upscaler import UpscaleSettings, upscale
+from .i18n import tr
 
 
 @dataclass
@@ -119,25 +120,25 @@ class BatchWorker(QObject):
         zip_path = self._compute_backup_zip_path()
         # Se esiste già, non sovrascrivere (preserva il primo backup)
         if os.path.exists(zip_path):
-            self.log.emit(f"Backup esistente: {zip_path} (preservato)")
+            self.log.emit(tr("worker_backup_exists", path=zip_path))
             return zip_path
 
         # Calcola la root per i path relativi nel ZIP
         zip_dir = os.path.dirname(zip_path)
         total = len(self.job.inputs)
-        self.log.emit(f"Creazione backup ZIP di {total} immagini...")
+        self.log.emit(tr("worker_backup_start", n=total))
 
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for i, src in enumerate(self.job.inputs):
                 if self._cancel:
-                    self.log.emit("Annullato durante il backup.")
+                    self.log.emit(tr("worker_backup_cancelled"))
                     return zip_path
                 self.progress.emit(i, total * 2, f"backup {os.path.basename(src)}")
                 # Path relativo alla directory del ZIP (game/)
                 rel = os.path.relpath(src, zip_dir)
                 zf.write(src, rel)
 
-        self.log.emit(f"Backup completato: {zip_path}")
+        self.log.emit(tr("worker_backup_done", path=zip_path))
         return zip_path
 
     def run(self):
@@ -165,7 +166,7 @@ class BatchWorker(QObject):
         try:
             for i, src in enumerate(self.job.inputs):
                 if self._cancel:
-                    self.log.emit("Annullato dall'utente.")
+                    self.log.emit(tr("worker_cancelled"))
                     break
 
                 basename = os.path.basename(src)
@@ -204,26 +205,22 @@ class BatchWorker(QObject):
 
                         if self.job.upscale_settings.enabled and final_target:
                             tw, th = final_target
-                            # Fattore di scala richiesto (take the max dimension)
                             scale_needed = max(tw / crop_w, th / crop_h) if crop_w > 0 else 0
                             if scale_needed <= 1.0:
-                                # Già sopra/uguale al target: solo resize (downscale)
                                 self.log.emit(
-                                    f"  skip AI: {crop_w}x{crop_h} >= target {tw}x{th}")
+                                    tr("worker_skip_ai_above", w=crop_w, h=crop_h, tw=tw, th=th))
                                 skip_upscale = True
                             elif scale_needed < 1.5:
-                                # Fattore piccolo (<1.5x): AI non aiuta, anzi peggiora
-                                # LANCZOS ad alta qualità è meglio per piccoli ingrandimenti
                                 self.log.emit(
-                                    f"  skip AI: fattore {scale_needed:.2f}x < 1.5x, "
-                                    f"uso LANCZOS ({crop_w}x{crop_h} -> {tw}x{th})")
+                                    tr("worker_skip_ai_small",
+                                       factor=scale_needed, w=crop_w, h=crop_h, tw=tw, th=th))
                                 skip_upscale = True
 
                         if self.job.upscale_settings.enabled and not skip_upscale:
                             upscaled_path = os.path.join(tmpdir, f"{name}_up.png")
                             self.log.emit(
-                                f"  AI upscale {basename} "
-                                f"x{self.job.upscale_settings.scale}...")
+                                tr("worker_ai_upscale",
+                                   name=basename, scale=self.job.upscale_settings.scale))
                             upscale(inter_path, upscaled_path,
                                     self.job.upscale_settings,
                                     on_progress=lambda l: self.log.emit(f"    {l}"))
@@ -254,7 +251,7 @@ class BatchWorker(QObject):
                         # Solo crop+resize -> file finale diretto in output_dir
                         out_ext = self.job.crop_settings.output_format
                         out_path = self._compute_output_path(src, name, out_ext)
-                        self.log.emit(f"  crop {basename}...")
+                        self.log.emit(tr("worker_crop", name=basename))
                         final_size = process_image(src, out_path, self.job.crop_settings)
 
                     rel_out = out_path
@@ -262,12 +259,12 @@ class BatchWorker(QObject):
                         rel_out = os.path.relpath(out_path, self._compute_game_dir())
                     except Exception:
                         pass
-                    self.log.emit(f"  -> output: {rel_out} ({final_size[0]}x{final_size[1]})")
+                    self.log.emit(tr("worker_output", path=rel_out, w=final_size[0], h=final_size[1]))
 
                     results.append(JobResult(src, out_path, final_size, "ok"))
                     self.file_done.emit(results[-1])
                 except Exception as e:  # noqa: BLE001
-                    self.log.emit(f"  ERRORE {basename}: {e}")
+                    self.log.emit(tr("worker_error", name=basename, e=e))
                     results.append(JobResult(src, "", (0, 0), "error", str(e)))
                     self.file_done.emit(results[-1])
 

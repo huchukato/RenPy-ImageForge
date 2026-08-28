@@ -1,11 +1,11 @@
-"""Dialog per l'apertura di un gioco Ren'Py.
+"""Dialog for opening a Ren'Py game.
 
-Pipeline UI:
-1. Utente seleziona .app o cartella
-2. Estrazione .rpa + decompilazione .rpyc (con progress)
-3. Scansione .rpy + lettura risoluzioni (con progress)
-4. Tabella con tutte le immagini di gioco, filtri per risoluzione
-5. Selezione + "Aggiungi alla lista batch"
+UI pipeline:
+1. User selects .app or folder
+2. .rpa extraction + .rpyc decompilation (with progress)
+3. .rpy scan + resolution reading (with progress)
+4. Table with all game images, resolution filters
+5. Selection + "Add to batch list"
 """
 
 from __future__ import annotations
@@ -24,19 +24,20 @@ from ..renpy import (
     find_game_dir, extract_rpa_files, decompile_rpyc_files,
     scan_game_images, GameImage, unren_tools_available,
 )
+from ..i18n import tr
 
 
 # --------------------------------------------------------------------------- #
-# Worker per estrazione + scansione in background
+# Worker for extraction + scanning in background
 # --------------------------------------------------------------------------- #
 
 class RenpyScanWorker(QThread):
-    """Esegue estrazione .rpa, decompilazione .rpyc e scansione in background."""
+    """Runs .rpa extraction, .rpyc decompilation and scanning in background."""
 
-    phase = Signal(str)           # nome fase corrente
-    progress = Signal(int, int)   # current, total
+    phase = Signal(str)
+    progress = Signal(int, int)
     log = Signal(str)
-    finished_images = Signal(list)  # list[GameImage]
+    finished_images = Signal(list)
     error = Signal(str)
 
     def __init__(self, game_path: str, full_hd_target: tuple[int, int]):
@@ -51,36 +52,33 @@ class RenpyScanWorker(QThread):
     def run(self):
         try:
             game_dir = find_game_dir(self.game_path)
-            self.log.emit(f"Game dir: {game_dir}")
+            self.log.emit(tr("phase_game_dir", path=game_dir))
 
             if not game_dir.is_dir():
-                self.error.emit(f"Directory game non trovata: {game_dir}")
+                self.error.emit(tr("phase_game_not_found", path=game_dir))
                 return
 
-            # Fase 1: estrazione .rpa
-            self.phase.emit("Estrazione archivi .rpa")
+            self.phase.emit(tr("phase_extract_rpa"))
             if not extract_rpa_files(game_dir, log=self.log.emit,
                                      progress=lambda c, t: self.progress.emit(c, t)):
-                self.error.emit("Estrazione .rpa fallita")
+                self.error.emit(tr("phase_extract_failed"))
                 return
 
             if self._cancel:
-                self.log.emit("Annullato")
+                self.log.emit(tr("phase_cancelled"))
                 return
 
-            # Fase 2: decompilazione .rpyc
-            self.phase.emit("Decompilazione .rpyc")
+            self.phase.emit(tr("phase_decompile_rpyc"))
             if not decompile_rpyc_files(game_dir, log=self.log.emit,
                                         progress=lambda c, t: self.progress.emit(c, t)):
-                self.error.emit("Decompilazione .rpyc fallita")
+                self.error.emit(tr("phase_decompile_failed"))
                 return
 
             if self._cancel:
-                self.log.emit("Annullato")
+                self.log.emit(tr("phase_cancelled"))
                 return
 
-            # Fase 3: scansione
-            self.phase.emit("Scansione immagini")
+            self.phase.emit(tr("phase_scan_images"))
             images = scan_game_images(
                 game_dir,
                 log=self.log.emit,
@@ -96,46 +94,47 @@ class RenpyScanWorker(QThread):
 
 
 # --------------------------------------------------------------------------- #
-# Dialog principale
+# Main dialog
 # --------------------------------------------------------------------------- #
 
 class RenpyDialog(QDialog):
-    """Dialog per aprire un gioco Ren'Py, scansionarlo e selezionare immagini."""
+    """Dialog to open a Ren'Py game, scan it and select images."""
 
-    images_selected = Signal(list)  # list[str] path selezionati
+    images_selected = Signal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("RenPy ImageForge — Apri gioco Ren'Py")
+        self.setWindowTitle(tr("renpy_dialog_title"))
         self.resize(1000, 700)
         self._worker: RenpyScanWorker | None = None
         self._images: list[GameImage] = []
         self._build_ui()
+        self.retranslate_ui()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
 
-        # --- Barra superiore: selezione gioco ---
-        top = QGroupBox("Gioco Ren'Py")
-        top_layout = QHBoxLayout(top)
+        # --- Top bar: game selection ---
+        self.top_group = QGroupBox()
+        top_layout = QHBoxLayout(self.top_group)
 
-        self.path_label = QLabel("Nessun gioco selezionato")
+        self.path_label = QLabel()
         self.path_label.setStyleSheet("color: #8a7a64;")
-        browse_btn = QPushButton("Sfoglia...")
-        browse_btn.clicked.connect(self._pick_game)
-        self.scan_btn = QPushButton("Scansiona")
+        self.browse_btn = QPushButton()
+        self.browse_btn.clicked.connect(self._pick_game)
+        self.scan_btn = QPushButton()
         self.scan_btn.setEnabled(False)
         self.scan_btn.clicked.connect(self._start_scan)
 
         top_layout.addWidget(self.path_label, 1)
-        top_layout.addWidget(browse_btn)
+        top_layout.addWidget(self.browse_btn)
         top_layout.addWidget(self.scan_btn)
-        layout.addWidget(top)
+        layout.addWidget(self.top_group)
 
-        # --- Target full HD configurabile ---
-        target_group = QGroupBox("Target risoluzione")
-        target_layout = QFormLayout(target_group)
+        # --- Full HD target ---
+        self.target_group = QGroupBox()
+        target_layout = QFormLayout(self.target_group)
         self.target_w = QSpinBox()
         self.target_w.setRange(1, 32767)
         self.target_w.setValue(1920)
@@ -147,14 +146,15 @@ class RenpyDialog(QDialog):
         th.addWidget(QLabel("x"))
         th.addWidget(self.target_h)
         th.addStretch()
-        target_layout.addRow("Considera 'full HD':", th)
-        layout.addWidget(target_group)
+        self._target_label = QLabel()
+        target_layout.addRow(self._target_label, th)
+        layout.addWidget(self.target_group)
 
-        # --- Stato UnRen Tools ---
+        # --- UnRen Tools status ---
         if not unren_tools_available():
-            warn = QLabel("⚠ UnRen Tools non trovati. Imposta UNREN_TOOLS_DIR.")
-            warn.setStyleSheet("color: #c47040; font-size: 11px;")
-            layout.addWidget(warn)
+            self.unren_warn = QLabel(tr("renpy_unren_warn"))
+            self.unren_warn.setStyleSheet("color: #c47040; font-size: 11px;")
+            layout.addWidget(self.unren_warn)
 
         # --- Progress ---
         self.phase_label = QLabel("")
@@ -164,45 +164,34 @@ class RenpyDialog(QDialog):
         layout.addWidget(self.phase_label)
         layout.addWidget(self.progress)
 
-        # --- Log compatto ---
+        # --- Compact log ---
         self.log_label = QLabel("")
         self.log_label.setStyleSheet("color: #9a8a70; font-size: 10px;")
         layout.addWidget(self.log_label)
 
-        # --- Tabella immagini ---
-        table_group = QGroupBox("Immagini di gioco trovate")
-        table_layout = QVBoxLayout(table_group)
+        # --- Images table ---
+        self.table_group = QGroupBox()
+        table_layout = QVBoxLayout(self.table_group)
 
-        # Filtri
+        # Filters
         filter_row = QHBoxLayout()
-        filter_row.addWidget(QLabel("Filtra:"))
+        self._filter_label = QLabel()
+        filter_row.addWidget(self._filter_label)
         self.filter_combo = QComboBox()
-        self.filter_combo.addItems([
-            "Da elaborare (sotto full-HD, no UI)",
-            "Tutte",
-            "Solo non-full-HD (sotto)",
-            "Solo non-full-HD (sopra)",
-            "Solo non-full-HD (tutte)",
-            "Solo full HD",
-            "Solo UI/bottoni",
-            "Risoluzione sconosciuta",
-        ])
         self.filter_combo.currentIndexChanged.connect(self._apply_filter)
         filter_row.addWidget(self.filter_combo)
 
-        self.select_visible_btn = QPushButton("Seleziona visibili")
+        self.select_visible_btn = QPushButton()
         self.select_visible_btn.clicked.connect(self._select_visible)
         filter_row.addWidget(self.select_visible_btn)
 
-        self.count_label = QLabel("0 immagini")
+        self.count_label = QLabel()
         self.count_label.setStyleSheet("color: #8a7a64;")
         filter_row.addWidget(self.count_label)
         filter_row.addStretch()
         table_layout.addLayout(filter_row)
 
         self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels(
-            ["", "Nome", "File", "Risoluzione", "Stato", "Ref.", "Usi"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.table.horizontalHeader().resizeSection(0, 30)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
@@ -214,44 +203,77 @@ class RenpyDialog(QDialog):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setAlternatingRowColors(True)
         table_layout.addWidget(self.table)
-        layout.addWidget(table_group, 1)
+        layout.addWidget(self.table_group, 1)
 
-        # --- Bottoni fondo ---
+        # --- Bottom buttons ---
         bottom = QHBoxLayout()
-        self.add_btn = QPushButton("Aggiungi selezionate alla lista batch")
+        self.add_btn = QPushButton()
         self.add_btn.setStyleSheet(
             "QPushButton{font-weight:bold;padding:6px;"
             "background:#b8865c;color:#1a1815;border:none;border-radius:4px;}"
             "QPushButton:hover{background:#c8966c;}")
         self.add_btn.clicked.connect(self._add_selected)
-        close_btn = QPushButton("Chiudi")
-        close_btn.clicked.connect(self.reject)
+        self.close_btn = QPushButton()
+        self.close_btn.clicked.connect(self.reject)
         bottom.addStretch()
         bottom.addWidget(self.add_btn)
-        bottom.addWidget(close_btn)
+        bottom.addWidget(self.close_btn)
         layout.addLayout(bottom)
 
-    # --- Selezione gioco ---
-    def _pick_game(self):
-        """Apre un dialog che permette di selezionare sia .app che cartelle.
+    def retranslate_ui(self):
+        """Update all translatable strings."""
+        self.setWindowTitle(tr("renpy_dialog_title"))
+        self.top_group.setTitle(tr("renpy_game_group"))
+        self.path_label.setText(tr("renpy_no_game"))
+        self.browse_btn.setText(tr("renpy_browse"))
+        self.scan_btn.setText(tr("renpy_scan"))
+        self.target_group.setTitle(tr("renpy_target_group"))
+        self._target_label.setText(tr("renpy_consider_fullhd"))
 
-        Su macOS i .app sono bundle (directory) ma il dialog nativo non li
-        fa selezionare come cartelle. Usiamo getOpenFileName con filtro .app
-        per i bundle, e il dialog non-nativo per le cartelle.
-        """
-        # Prima prova con getOpenFileName filtrando .app
+        # Filter combo: rebuild items
+        cur_idx = self.filter_combo.currentIndex()
+        self.filter_combo.blockSignals(True)
+        self.filter_combo.clear()
+        self.filter_combo.addItems([
+            tr("renpy_filter_process"),
+            tr("renpy_filter_all"),
+            tr("renpy_filter_below"),
+            tr("renpy_filter_above"),
+            tr("renpy_filter_all_nonhd"),
+            tr("renpy_filter_fullhd"),
+            tr("renpy_filter_ui"),
+            tr("renpy_filter_unknown"),
+        ])
+        self.filter_combo.setCurrentIndex(max(cur_idx, 0))
+        self.filter_combo.blockSignals(False)
+
+        self._filter_label.setText(tr("renpy_filter"))
+        self.select_visible_btn.setText(tr("renpy_select_visible"))
+        self.count_label.setText(tr("renpy_count", n=0))
+        self.table_group.setTitle(tr("renpy_images_group"))
+        self.table.setHorizontalHeaderLabels([
+            "", tr("renpy_col_name"), tr("renpy_col_file"),
+            tr("renpy_col_res"), tr("renpy_col_status"),
+            tr("renpy_col_ref"), tr("renpy_col_uses"),
+        ])
+        self.add_btn.setText(tr("renpy_add_selected"))
+        self.close_btn.setText(tr("renpy_close"))
+
+        # Re-populate table if images exist
+        if self._images:
+            self._populate_table()
+
+    # --- Game selection ---
+    def _pick_game(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Seleziona il gioco Ren'Py (.app o cartella)",
-            "", "Applicazione Mac (*.app);;Tutti i file (*)")
+            self, tr("renpy_select_title"), "", tr("renpy_select_filter"))
         if path:
             self.path_label.setText(path)
             self.path_label.setStyleSheet("color: #d8c8b0;")
             self.scan_btn.setEnabled(True)
             return
 
-        # Se l'utente annulla o vuole una cartella, riprova con directory
-        # non-nativa (tratta i .app come directory normali)
-        dlg = QFileDialog(self, "Oppure seleziona una cartella")
+        dlg = QFileDialog(self, tr("renpy_or_folder"))
         dlg.setFileMode(QFileDialog.Directory)
         dlg.setOption(QFileDialog.DontUseNativeDialog, True)
         if dlg.exec():
@@ -261,10 +283,10 @@ class RenpyDialog(QDialog):
                 self.path_label.setStyleSheet("color: #d8c8b0;")
                 self.scan_btn.setEnabled(True)
 
-    # --- Avvio scansione ---
+    # --- Scan start ---
     def _start_scan(self):
         game_path = self.path_label.text()
-        if not game_path:
+        if not game_path or game_path == tr("renpy_no_game"):
             return
 
         target = (self.target_w.value(), self.target_h.value())
@@ -281,7 +303,7 @@ class RenpyDialog(QDialog):
         self._worker.start()
 
     def _on_phase(self, name):
-        self.phase_label.setText(f"Fase: {name}")
+        self.phase_label.setText(tr("renpy_phase", name=name))
 
     def _on_progress(self, current, total):
         self.progress.setRange(0, max(total, 1))
@@ -294,18 +316,17 @@ class RenpyDialog(QDialog):
         self.progress.setVisible(False)
         self.scan_btn.setEnabled(True)
         self._cleanup_worker()
-        QMessageBox.critical(self, "Errore", msg)
+        QMessageBox.critical(self, tr("renpy_error"), msg)
 
     def _on_finished(self, images: list[GameImage]):
         self.progress.setVisible(False)
-        self.phase_label.setText("Scansione completata")
+        self.phase_label.setText(tr("renpy_scan_done"))
         self.scan_btn.setEnabled(True)
         self._images = images
         self._populate_table()
         self._cleanup_worker()
 
     def _cleanup_worker(self):
-        """Scollega i signal e programma la deleteLater del worker."""
         if self._worker is not None:
             try:
                 self._worker.phase.disconnect()
@@ -314,12 +335,11 @@ class RenpyDialog(QDialog):
                 self._worker.finished_images.disconnect()
                 self._worker.error.disconnect()
             except RuntimeError:
-                pass  # signal già disconnessi
+                pass
             self._worker.deleteLater()
             self._worker = None
 
     def _stop_worker(self):
-        """Ferma il worker se in esecuzione (bloccante, max 5s)."""
         if self._worker is not None and self._worker.isRunning():
             self._worker.cancel()
             self._worker.quit()
@@ -334,7 +354,7 @@ class RenpyDialog(QDialog):
         self._stop_worker()
         super().reject()
 
-    # --- Tabella ---
+    # --- Table ---
     def _populate_table(self):
         self.table.setRowCount(0)
         for img in self._images:
@@ -359,7 +379,7 @@ class RenpyDialog(QDialog):
                 status_item.setForeground(Qt.red)
             self.table.setItem(row, 4, status_item)
 
-            ref_item = QTableWidgetItem("sì" if img.is_referenced else "no")
+            ref_item = QTableWidgetItem(tr("renpy_ref_yes") if img.is_referenced else tr("renpy_ref_no"))
             if not img.is_referenced:
                 ref_item.setForeground(Qt.gray)
             self.table.setItem(row, 5, ref_item)
@@ -370,39 +390,40 @@ class RenpyDialog(QDialog):
         n_visible = sum(1 for r in range(self.table.rowCount())
                         if not self.table.isRowHidden(r))
         self.count_label.setText(
-            f"{n_visible} visibili / {len(self._images)} totali")
+            tr("renpy_visible_total", visible=n_visible, total=len(self._images)))
 
     def _apply_filter(self):
-        filt = self.filter_combo.currentText()
+        filt_idx = self.filter_combo.currentIndex()
         target_w = self.target_w.value()
         target_h = self.target_h.value()
         for row in range(self.table.rowCount()):
             img = self._images[row]
             show = True
-            if filt == "Da elaborare (sotto full-HD, no UI)":
-                # Sotto full-HD: vanno upscalate. Esclude UI, sopra full-HD e sconosciute
+            if filt_idx == 0:  # To process (below full-HD, no UI)
                 show = (img.width > 0 and not img.is_full_hd
                         and not img.is_ui_element
                         and img.width <= target_w and img.height <= target_h)
-            elif filt == "Solo non-full-HD (sotto)":
+            elif filt_idx == 1:  # All
+                show = True
+            elif filt_idx == 2:  # Only non-full-HD (below)
                 show = (img.width > 0 and not img.is_full_hd
                         and img.width <= target_w and img.height <= target_h)
-            elif filt == "Solo non-full-HD (sopra)":
+            elif filt_idx == 3:  # Only non-full-HD (above)
                 show = (img.width > target_w or img.height > target_h)
-            elif filt == "Solo non-full-HD (tutte)":
+            elif filt_idx == 4:  # Only non-full-HD (all)
                 show = (img.width > 0 and not img.is_full_hd)
-            elif filt == "Solo full HD":
+            elif filt_idx == 5:  # Only full HD
                 show = img.is_full_hd
-            elif filt == "Solo UI/bottoni":
+            elif filt_idx == 6:  # Only UI/buttons
                 show = img.is_ui_element
-            elif filt == "Risoluzione sconosciuta":
+            elif filt_idx == 7:  # Unknown resolution
                 show = (img.width == 0)
             self.table.setRowHidden(row, not show)
 
         visible = sum(1 for r in range(self.table.rowCount())
                       if not self.table.isRowHidden(r))
         self.count_label.setText(
-            f"{visible} visibili / {len(self._images)} totali")
+            tr("renpy_visible_total", visible=visible, total=len(self._images)))
 
     def _select_visible(self):
         for row in range(self.table.rowCount()):
@@ -415,8 +436,8 @@ class RenpyDialog(QDialog):
             if self.table.item(row, 0).checkState() == Qt.Checked:
                 selected.append(str(self._images[row].file_path))
         if not selected:
-            QMessageBox.information(self, "Nessuna selezione",
-                                    "Seleziona almeno un'immagine.")
+            QMessageBox.information(self, tr("renpy_no_selection"),
+                                    tr("renpy_no_selection_msg"))
             return
         self.images_selected.emit(selected)
-        self.log_label.setText(f"Aggiunte {len(selected)} immagini alla lista batch.")
+        self.log_label.setText(tr("renpy_added_n", n=len(selected)))
