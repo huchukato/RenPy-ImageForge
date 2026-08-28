@@ -13,6 +13,10 @@ Pensato per il caso d'uso: hai un mucchio di immagini (es. webp 1620x1080),
 le croppi in un aspect ratio specifico (es. 16:9) e poi le upscalai a full HD
 (1920x1080) con un modello AI.
 
+<p align="center">
+  <img src="img/gui.png" width="800" alt="GUI RenPy ImageForge">
+</p>
+
 > Documentazione inglese: [README.md](README.md) · [Changelog](UPDATE.md)
 
 ## Requisiti

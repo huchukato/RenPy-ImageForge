@@ -18,6 +18,12 @@
 
 ---
 
+<p align="center">
+  <img src="img/gui.png" width="800" alt="RenPy ImageForge GUI">
+</p>
+
+---
+
 Built for the use case: you have a bunch of images (e.g. webp 1620x1080),
 crop them to a specific aspect ratio (e.g. 16:9), then upscale to full HD
 (1920x1080) with an AI model.
