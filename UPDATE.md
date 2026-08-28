@@ -1,100 +1,100 @@
 # Changelog
 
-Tutte le versioni di RenPy ImageForge con le relative note di rilascio.
+All RenPy ImageForge releases with their respective release notes.
 
 ---
 
 ## v0.2.0 — 2026-08-28
 
-Prima release pubblica di RenPy ImageForge.
+First public release of RenPy ImageForge.
 
-### Funzionalità
+### Features
 
-#### Batch processing immagini
-- Crop con aspect ratio fisso (16:9, 16:10, 3:2, 4:3, 1:1, 9:16, 21:9, custom)
-- Anchor posizionale su griglia 3x3 (top-left, center, bottom-right, ecc.)
-- Resize finale con blocco proporzionale
-- Formati supportati: WebP, JPEG, PNG, TIFF, HEIC (lettura)
-- Formati output: WebP, JPEG, PNG
-- Qualità output configurabile (1-100, default 98)
-- Suffisso opzionale per i file generati
-- Anteprima live del crop con overlay
-- Pipeline: crop → (AI upscale) → resize finale
+#### Batch image processing
+- Crop with fixed aspect ratio (16:9, 16:10, 3:2, 4:3, 1:1, 9:16, 21:9, custom)
+- Positional anchor on 3x3 grid (top-left, center, bottom-right, etc.)
+- Final resize with proportional lock
+- Supported formats: WebP, JPEG, PNG, TIFF, HEIC (read)
+- Output formats: WebP, JPEG, PNG
+- Configurable output quality (1-100, default 98)
+- Optional suffix for generated files
+- Live crop preview with overlay
+- Pipeline: crop → (AI upscale) → final resize
 
 #### AI Upscaling (Real-ESRGAN)
-- Integrazione Real-ESRGAN ncnn/Vulkan (Metal/MoltenVK su Apple Silicon)
-- Modelli: realesrgan-x4plus (fotorealistico, default), realesr-animevideov3, realesrgan-x4plus-anime
+- Real-ESRGAN ncnn/Vulkan integration (Metal/MoltenVK on Apple Silicon)
+- Models: realesrgan-x4plus (photorealistic, default), realesr-animevideov3, realesrgan-x4plus-anime
 - Scale: x2, x3, x4
-- **Smart Upscale**: salta automaticamente l'AI per piccoli ingrandimenti (fattore < 1.5x) e usa solo LANCZOS ad alta qualità — evita artefatti e perdita di dettaglio
-- Skip AI anche per immagini già sopra il target finale (solo downscale)
-- Binario + modelli bundled in `vendor/`
+- **Smart Upscale**: automatically skips AI for small enlargements (factor < 1.5x) and uses only high-quality LANCZOS — avoids artifacts and detail loss
+- Also skips AI for images already above the final target (downscale only)
+- Binary + models bundled in `vendor/`
 
-#### Modalità Ren'Py
-- Selezione giochi Ren'Py (.app macOS o cartella game/)
-- Estrazione automatica archivi .rpa (via rpatool)
-- Decompilazione .rpyc (via unrpyc)
-- Scansione .rpy per riferimenti `scene`/`show`
-- Individuazione di **tutte** le immagini su disco (non solo referenziate)
-- Colonna "Ref." che indica se l'immagine è usata in scene/show
-- Lettura risoluzioni con PIL
-- Classificazione: full HD, sotto, sopra, sconosciuta
-- Filtro automatico UI/bottoni (immagini sotto 800x400)
-- Filtro default: "Da elaborare (sotto full-HD, no UI)"
-- Tabella con: nome, file, risoluzione, stato, ref., usi
-- Filtri: da elaborare, tutte, sotto, sopra, full HD, UI, sconosciute
-- Selezione multipla e aggiunta alla lista batch
-- Target full-HD configurabile (default 1920x1080)
+#### Ren'Py mode
+- Ren'Py game selection (macOS .app or game/ folder)
+- Automatic .rpa archive extraction (via rpatool)
+- .rpyc decompilation (via unrpyc)
+- .rpy scan for `scene`/`show` references
+- Detection of **all** images on disk (not only referenced ones)
+- "Ref." column indicating whether the image is used in scene/show
+- Resolution reading with PIL
+- Classification: full HD, below, above, unknown
+- Automatic UI/button filtering (images below 800x400)
+- Default filter: "To process (below full-HD, no UI)"
+- Table with: name, file, resolution, status, ref., uses
+- Filters: to process, all, below, above, full HD, UI, unknown
+- Multi-selection and add to batch list
+- Configurable full-HD target (default 1920x1080)
 
-#### Elaborazione in-place (Ren'Py)
-- Sovrascrive gli originali mantenendo nome, estensione e percorso
-- Il codice del gioco continua a funzionare senza modifiche
-- Mantiene la struttura delle sottocartelle (images/P1/, images/P2/, ecc.)
-- **Backup automatico in ZIP** prima dell'elaborazione (`game/imageforge_backup.zip`)
-  - Ren'Py non legge i .zip, sicuro
-  - Preserva il primo backup (non sovrascrive se esiste già)
-- **Restore Backup** (panic button): ripristina le immagini originali selezionando il .app o lo ZIP
+#### In-place processing (Ren'Py)
+- Overwrites originals keeping name, extension and path
+- Game code continues to work without modifications
+- Preserves subfolder structure (images/P1/, images/P2/, etc.)
+- **Automatic ZIP backup** before processing (`game/imageforge_backup.zip`)
+  - Ren'Py does not read .zip files, safe
+  - Preserves the first backup (does not overwrite if one exists)
+- **Restore Backup** (panic button): restores original images by selecting the .app or the ZIP
 
-#### Preset rapidi
+#### Quick presets
 - **Full HD 1080p**: crop 16:9 + smart upscale + resize 1920x1080
 - **1440p**: crop 16:9 + AI upscale x2 + resize 2560x1440
 - **4K UHD**: crop 16:9 + AI upscale x3 + resize 3840x2160
 
 #### GUI
-- PySide6 (Qt6) con tema Fusion scuro
-- Tema grafico bronzo/oro ispirato al logo
-- Drag & drop file e cartelle
-- Anteprima crop con overlay e dimensioni pipeline
-- Log in tempo reale con path di output per ogni file
-- Progress bar con stato
-- Annulla elaborazione
-- Icona app personalizzata (logo)
+- PySide6 (Qt6) with dark Fusion theme
+- Bronze/gold graphic theme inspired by the logo
+- File and folder drag & drop
+- Crop preview with overlay and pipeline dimensions
+- Real-time log with output path for each file
+- Progress bar with status
+- Cancel processing
+- Custom app icon (logo)
 
-#### Infrastruttura
-- Avvio con `uv` (gestione automatica dipendenze e venv)
-- `start.sh` per avviare l'app
-- `build.sh` per creare pacchetti distribuibili
+#### Infrastructure
+- Launch with `uv` (automatic dependency and venv management)
+- `start.sh` to launch the app
+- `build.sh` to create distributable packages
   - macOS: .app + DMG + ZIP
-  - Linux: binario + TAR.GZ
+  - Linux: binary + TAR.GZ
   - Windows: .exe + ZIP
   - Source: TAR.GZ + ZIP (cross-platform)
-- `pyproject.toml` con dipendenze e metadata
-- Repo GitHub: https://github.com/huchukato/RenPy-ImageForge
+- `pyproject.toml` with dependencies and metadata
+- GitHub repo: https://github.com/huchukato/RenPy-ImageForge
 
-### Risoluzione problemi noti
-- Fix crash `QThread: Destroyed while thread is still running` (dialog Ren'Py e worker batch)
-- Fix bug `_read_image_size` non definito in workers.py (elaborazione falliva silenziosamente)
-- Fix selezione .app su macOS (dialog file invece di getExistingDirectory)
-- Fix perdita qualità: modello default cambiato da anime a fotorealistico
-- Fix perdita qualità: qualità WebP default alzata da 92 a 98
-- Fix smart upscale: AI non più usata per fattori < 1.5x (LANCZOS migliore)
+### Bug fixes
+- Fix `QThread: Destroyed while thread is still running` crash (Ren'Py dialog and batch worker)
+- Fix undefined `_read_image_size` in workers.py (processing failed silently)
+- Fix .app selection on macOS (file dialog instead of getExistingDirectory)
+- Fix quality loss: default model changed from anime to photorealistic
+- Fix quality loss: default WebP quality raised from 92 to 98
+- Fix smart upscale: AI no longer used for factors < 1.5x (LANCZOS is better)
 
-### Requisiti
-- macOS 11+ (Apple Silicon o Intel)
-- Python 3.10+ (gestito da uv)
-- [uv](https://docs.astral.sh/uv/) per l'avvio
-- Real-ESRGAN bundled in `vendor/` (nessuna installazione necessaria)
+### Requirements
+- macOS 11+ (Apple Silicon or Intel)
+- Python 3.10+ (managed by uv)
+- [uv](https://docs.astral.sh/uv/) for launching
+- Real-ESRGAN bundled in `vendor/` (no installation needed)
 
-### Download
-- macOS DMG: `dist/RenPy ImageForge-macOS.dmg`
-- macOS ZIP: `dist/RenPy ImageForge-macOS.zip`
-- Sorgente: `dist/RenPy ImageForge-source.tar.gz` / `.zip`
+### Downloads
+- macOS DMG: `dist/RenPy-ImageForge-v0.2.0-macOS.dmg`
+- macOS ZIP: `dist/RenPy-ImageForge-v0.2.0-macOS.zip`
+- Source: `dist/RenPy-ImageForge-v0.2.0-source.tar.gz` / `.zip`

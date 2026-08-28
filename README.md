@@ -1,142 +1,172 @@
-# RenPy ImageForge
+<p align="center">
+  <img src="img/icon.iconset/icon_512x512.png" width="200" alt="RenPy ImageForge logo">
+</p>
 
-Tool macOS per **crop batch** di immagini con aspect ratio fisso, resize,
-**upscaling AI** (Real-ESRGAN ncnn/Metal) su Apple Silicon e **integrazione
-giochi Ren'Py** (estrazione archivi, scansione immagini, sostituzione in-place).
+<h1 align="center">RenPy ImageForge</h1>
 
-Pensato per il caso d'uso: hai un mucchio di immagini (es. webp 1620x1080),
-le croppi in un aspect ratio specifico (es. 16:9) e poi le upscalai a full HD
-(1920x1080) con un modello AI.
+<p align="center">
+  A macOS tool for batch cropping images with fixed aspect ratio, resizing,
+  AI upscaling (Real-ESRGAN ncnn/Metal on Apple Silicon), and Ren'Py game
+  integration (archive extraction, image scanning, in-place replacement).
+</p>
 
-## Requisiti
+<p align="center">
+  <a href="README.it.md">Italian documentation</a> ·
+  <a href="UPDATE.md">Changelog</a>
+</p>
 
-- macOS su Apple Silicon (testato su M2) o Intel
+---
+
+Built for the use case: you have a bunch of images (e.g. webp 1620x1080),
+crop them to a specific aspect ratio (e.g. 16:9), then upscale to full HD
+(1920x1080) with an AI model.
+
+## Requirements
+
+- macOS on Apple Silicon (tested on M2) or Intel
 - Python 3.10+
-- [uv](https://docs.astral.sh/uv/) (gestore pacchetti, installa automaticamente le dipendenze)
-- Real-ESRGAN ncnn bundled in `vendor/` (già incluso)
+- [uv](https://docs.astral.sh/uv/) (package manager, auto-installs dependencies)
+- Real-ESRGAN ncnn bundled in `vendor/` (already included)
 
-## Avvio
+## Quick start
 
 ```bash
 cd /Volumes/NVME/dev-ai/RenPy-ImageForge
 ./start.sh
 ```
 
-`uv` crea automaticamente il venv e installa le dipendenze da `pyproject.toml`
-al primo avvio. Nessun setup manuale necessario.
+`uv` automatically creates the venv and installs dependencies from
+`pyproject.toml` on first run. No manual setup required.
 
-## Uso
+## Usage
 
-### Modalità batch (default)
+### Batch mode (default)
 
-1. **Aggiungi immagini**: trascina file/cartelle nella lista a sinistra, oppure
-   usa `+ File` / `+ Cartella` (o File menu).
-2. **Configura crop** (pannello destra):
-   - **Aspect ratio**: preset (16:9, 2:3, 1:1, ...) o custom W:H, o "Nessuno".
-   - **Posizione**: griglia 3x3 per scegliere dove ancorare il crop
-     (center, top-left, ecc.).
-3. **Resize finale** (opzionale): dimensione target in pixel. Usa `auto`
-   (valore minimo dello spinbox) per mantenere le proporzioni su un asse.
-4. **Output**: formato (webp/png/jpg), qualità, suffisso nome, cartella
-   destinazione.
-5. **Upscaling AI** (opzionale): attiva Real-ESRGAN con scala x2/x3/x4 e
-   modello (anime/foto). L'upscaling avviene **dopo** il crop e **prima** del
-   resize finale, così l'AI lavora alla massima risoluzione disponibile.
-6. **Avvia elaborazione**: il batch gira in background con progress bar e log.
+1. **Add images**: drag files/folders into the left list, or use
+   `+ File` / `+ Folder` (or File menu).
+2. **Configure crop** (right panel):
+   - **Aspect ratio**: presets (16:9, 2:3, 1:1, ...) or custom W:H, or "None".
+   - **Anchor**: 3x3 grid to choose where to anchor the crop
+     (center, top-left, etc.).
+3. **Final resize** (optional): target size in pixels. Use `auto`
+   (minimum spinbox value) to keep aspect ratio on one axis.
+4. **Output**: format (webp/png/jpg), quality, name suffix, destination folder.
+5. **AI upscaling** (optional): enable Real-ESRGAN with scale x2/x3/x4 and
+   model (anime/photo). Upscaling happens **after** crop and **before** final
+   resize, so the AI works at the maximum available resolution.
+6. **Start processing**: batch runs in background with progress bar and log.
 
-### Modalità Ren'Py (File > Apri gioco Ren'Py...)
+### Ren'Py mode (File > Open Ren'Py game...)
 
-Per scansionare un gioco Ren'Py e trovare le immagini non full-HD tra migliaia
-di file:
+To scan a Ren'Py game and find non-full-HD images among thousands of files:
 
-1. **File > Apri gioco Ren'Py...** (Ctrl+R)
-2. **Sfoglia** e seleziona il `.app` o la cartella del gioco
-3. **Scansiona**: il tool estrae i `.rpa` (rpatool), decompila i `.rpyc`
-   (unrpyc) e analizza i `.rpy` per trovare le immagini usate in `scene`/`show`
-   — esclude menu, bottoni, UI
-4. **Tabella immagini**: ogni riga mostra nome, file, risoluzione e stato
-   (full HD / sopra / sotto / sconosciuta)
-5. **Filtra**: "Solo non-full-HD (sotto)" per vedere solo le immagini da
-   upscalare, oppure "Solo non-full-HD (tutte)" per tutte quelle fuori target
-6. **Seleziona visibili** e **Aggiungi alla lista batch**
-7. Torna alla finestra principale, configura crop + upscale (preset 1080p) e
-   avvia l'elaborazione
+1. **File > Open Ren'Py game...** (Ctrl+R)
+2. **Browse** and select the `.app` or game folder
+3. **Scan**: the tool extracts `.rpa` (rpatool), decompiles `.rpyc` (unrpyc)
+   and analyzes `.rpy` to find images used in `scene`/`show` statements
+   — excludes menus, buttons, UI
+4. **Image table**: each row shows name, file, resolution and status
+   (full HD / above / below / unknown)
+5. **Filter**: "Only non-full-HD (below)" to see only images to upscale,
+   or "Only non-full-HD (all)" for all off-target ones
+6. **Select visible** and **Add to batch list**
+7. Back in the main window, configure crop + upscale (1080p preset) and
+   start processing
 
-Le immagini processate sovrascrivono gli originali nella cartella `game/`:
-Ren'Py legge i file sciolti prima degli archivi `.rpa`, quindi non serve
-re-impackare.
+Processed images overwrite the originals in the `game/` folder: Ren'Py reads
+loose files before `.rpa` archives, so no repacking is needed.
 
-### Pipeline per immagine
+### Per-image pipeline
 
 ```
-originale ──crop(aspect ratio, anchor)──> ritaglio
-        ──(opzionale) upscale AI xN──>  ingrandito
-        ──(opzionale) resize finale──>  output (formato/qualità scelti)
+original ──crop(aspect ratio, anchor)──> cropped
+        ──(optional) AI upscale xN──>  enlarged
+        ──(optional) final resize──>  output (chosen format/quality)
 ```
 
-Se l'upscaling è disattivato: `originale ──crop + resize──> output`.
+If upscaling is disabled: `original ──crop + resize──> output`.
 
-## Modelli Real-ESRGAN
+## Real-ESRGAN models
 
-| Modello | Uso | Scale |
+| Model | Use case | Scale |
 |---|---|---|
-| `realesr-animevideov3` | Anime/illustrazioni, veloce | 2/3/4 |
-| `realesrgan-x4plus` | Foto generali, alta qualità | 4 |
-| `realesrgan-x4plus-anime` | Anime, alta qualità | 4 |
+| `realesr-animevideov3` | Anime/illustrations, fast | 2/3/4 |
+| `realesrgan-x4plus` | Photorealistic/general, high quality (default) | 4 |
+| `realesrgan-x4plus-anime` | Anime, high quality | 4 |
 
-Su Apple Silicon l'inferenza usa **Metal** via MoltenVK (verificato su M2).
+On Apple Silicon inference uses **Metal** via MoltenVK (verified on M2).
 
-## Struttura progetto
+## Project structure
 
 ```
-Batch-Cropper/
+RenPy-ImageForge/
 ├── start.sh                        # launcher (uv)
-├── pyproject.toml                  # dipendenze + metadata
+├── build.sh                        # build .app/.dmg/.zip/.tar.gz
+├── pyproject.toml                  # dependencies + metadata
+├── UPDATE.md                       # changelog
 ├── batch_cropper/
 │   ├── __init__.py
 │   ├── __main__.py                 # entry point (python -m batch_cropper)
-│   ├── app.py                      # GUI principale (PySide6)
-│   ├── cropper.py                  # logica crop/resize (Pillow)
-│   ├── upscaler.py                 # wrapper Real-ESRGAN ncnn
+│   ├── app.py                      # main GUI (PySide6)
+│   ├── cropper.py                  # crop/resize logic (Pillow)
+│   ├── upscaler.py                 # Real-ESRGAN ncnn wrapper
 │   ├── workers.py                  # QThread batch worker
-│   ├── renpy.py                    # integrazione Ren'Py (estrazione + scansione)
+│   ├── renpy.py                    # Ren'Py integration (extraction + scan)
 │   └── widgets/
 │       ├── __init__.py             # CropPreviewWidget
-│       ├── settings_panel.py       # pannello impostazioni
-│       └── renpy_dialog.py         # dialog scansione gioco Ren'Py
+│       ├── settings_panel.py       # settings panel
+│       └── renpy_dialog.py         # Ren'Py game scan dialog
 └── vendor/
-    └── realesrgan-ncnn-vulkan/     # binario + modelli (bundled)
+    └── realesrgan-ncnn-vulkan/     # binary + models (bundled)
         ├── realesrgan-ncnn-vulkan
         └── models/
 ```
 
-## Integrazione Ren'Py
+## Build
 
-La modalità Ren'Py usa gli **UnRen Tools** dal progetto
-[`RenPy-Fan-Video`](https://github.com/...) (sibling directory):
+Create distributable packages (DMG/ZIP/TAR.GZ):
 
-- `rpatool` per l'estrazione degli archivi `.rpa`
-- `unrpyc.py` + `decompiler/` per la decompilazione dei `.rpyc`
+```bash
+./build.sh              # full build + all packages
+./build.sh --mac-only   # macOS only (DMG + ZIP)
+./build.sh --source     # source distributions only
+```
 
-Path di default: `../RenPy-Fan-Video/UnRen Tools/UnRen Tools/`.
-Override con la variabile d'ambiente `UNREN_TOOLS_DIR`.
+Output in `dist/`:
+- `RenPy-ImageForge-vX.Y.Z-macOS.dmg` — macOS installer
+- `RenPy-ImageForge-vX.Y.Z-macOS.zip` — macOS generic
+- `RenPy-ImageForge-vX.Y.Z-Linux.tar.gz` — Linux binary
+- `RenPy-ImageForge-vX.Y.Z-Windows.zip` — Windows binary
+- `RenPy-ImageForge-vX.Y.Z-source.tar.gz` — source (Linux)
+- `RenPy-ImageForge-vX.Y.Z-source.zip` — source (Windows)
 
-La scansione analizza i `.rpy` decompilati per trovare i riferimenti
-`scene`/`show` e li risolve in file su disco — considera **solo le immagini
-di gioco**, escludendo menu, bottoni e UI. Per ogni immagine legge la
-risoluzione con PIL e la classifica rispetto al target full-HD.
+## Ren'Py integration
 
-## Variabili d'ambiente (avanzate)
+The Ren'Py mode uses **UnRen Tools** from the
+[`RenPy-Fan-Video`](https://github.com/...) project (sibling directory):
 
-- `REALESRGAN_BIN`: path al binario `realesrgan-ncnn-vulkan` (override bundle).
-- `REALESRGAN_MODELS`: path alla cartella `models/` (override bundle).
-- `PYTHON`: interprete Python da usare in `start.sh` (default: `uv run python`).
+- `rpatool` for `.rpa` archive extraction
+- `unrpyc.py` + `decompiler/` for `.rpyc` decompilation
 
-## Risoluzione problemi
+Default path: `../RenPy-Fan-Video/UnRen Tools/UnRen Tools/`.
+Override with the `UNREN_TOOLS_DIR` environment variable.
 
-- **"Real-ESRGAN non trovato"**: verifica che `vendor/realesrgan-ncnn-vulkan/`
-  contenga il binario eseguibile e la cartella `models/`. Riscarica dalla
+The scan analyzes decompiled `.rpy` files to find `scene`/`show` references
+and resolves them to files on disk — considers **only game images**,
+excluding menus, buttons and UI. For each image it reads the resolution
+with PIL and classifies it against the full-HD target.
+
+## Environment variables (advanced)
+
+- `REALESRGAN_BIN`: path to `realesrgan-ncnn-vulkan` binary (override bundle).
+- `REALESRGAN_MODELS`: path to `models/` folder (override bundle).
+- `PYTHON`: Python interpreter to use in `start.sh` (default: `uv run python`).
+
+## Troubleshooting
+
+- **"Real-ESRGAN not found"**: verify `vendor/realesrgan-ncnn-vulkan/`
+  contains the executable binary and `models/` folder. Re-download from the
   [release v0.2.0](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan/releases/tag/v0.2.0).
-- **Immagine nera dopo upscale**: riduci `tile size` (es. 128 o 256) per
-  abbassare l'uso memoria GPU.
-- **HEIC non si aprono**: `pip install pillow-heif` (già in requirements).
+- **Black image after upscale**: reduce `tile size` (e.g. 128 or 256) to
+  lower GPU memory usage.
+- **HEIC won't open**: `pip install pillow-heif` (already in dependencies).
