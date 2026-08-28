@@ -4,9 +4,10 @@
   <img src="img/icon.iconset/icon_512x512.png" width="200" alt="Logo RenPy ImageForge">
 </p>
 
-Tool macOS per **crop batch** di immagini con aspect ratio fisso, resize,
-**upscaling AI** (Real-ESRGAN ncnn/Metal) su Apple Silicon e **integrazione
-giochi Ren'Py** (estrazione archivi, scansione immagini, sostituzione in-place).
+Tool multipiattaforma per **crop batch** di immagini con aspect ratio fisso,
+resize, **upscaling AI** (Real-ESRGAN ncnn/Vulkan) e **integrazione giochi
+Ren'Py** (estrazione archivi, scansione immagini, sostituzione in-place).
+Funziona su macOS, Linux e Windows.
 
 Pensato per il caso d'uso: hai un mucchio di immagini (es. webp 1620x1080),
 le croppi in un aspect ratio specifico (es. 16:9) e poi le upscalai a full HD
@@ -16,16 +17,23 @@ le croppi in un aspect ratio specifico (es. 16:9) e poi le upscalai a full HD
 
 ## Requisiti
 
-- macOS su Apple Silicon (testato su M2) o Intel
+- macOS (Apple Silicon o Intel), Linux, o Windows 10+
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) (gestore pacchetti, installa automaticamente le dipendenze)
 - Real-ESRGAN ncnn bundled in `vendor/` (già incluso)
 
 ## Avvio
 
+**macOS / Linux:**
 ```bash
-cd /Volumes/NVME/dev-ai/RenPy-ImageForge
+cd /path/to/RenPy-ImageForge
 ./start.sh
+```
+
+**Windows:**
+```bat
+cd \path\to\RenPy-ImageForge
+start.bat
 ```
 
 `uv` crea automaticamente il venv e installa le dipendenze da `pyproject.toml`
@@ -91,6 +99,7 @@ Se l'upscaling è disattivato: `originale ──crop + resize──> output`.
 | `realesrgan-x4plus-anime` | Anime, alta qualità | 4 |
 
 Su Apple Silicon l'inferenza usa **Metal** via MoltenVK (verificato su M2).
+Su Linux/Windows usa **Vulkan**.
 
 ## Struttura progetto
 

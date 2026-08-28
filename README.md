@@ -5,9 +5,10 @@
 <h1 align="center">RenPy ImageForge</h1>
 
 <p align="center">
-  A macOS tool for batch cropping images with fixed aspect ratio, resizing,
-  AI upscaling (Real-ESRGAN ncnn/Metal on Apple Silicon), and Ren'Py game
+  A cross-platform tool for batch cropping images with fixed aspect ratio,
+  resizing, AI upscaling (Real-ESRGAN ncnn/Vulkan), and Ren'Py game
   integration (archive extraction, image scanning, in-place replacement).
+  Runs on macOS, Linux, and Windows.
 </p>
 
 <p align="center">
@@ -23,16 +24,23 @@ crop them to a specific aspect ratio (e.g. 16:9), then upscale to full HD
 
 ## Requirements
 
-- macOS on Apple Silicon (tested on M2) or Intel
+- macOS (Apple Silicon or Intel), Linux, or Windows 10+
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) (package manager, auto-installs dependencies)
 - Real-ESRGAN ncnn bundled in `vendor/` (already included)
 
 ## Quick start
 
+**macOS / Linux:**
 ```bash
-cd /Volumes/NVME/dev-ai/RenPy-ImageForge
+cd /path/to/RenPy-ImageForge
 ./start.sh
+```
+
+**Windows:**
+```bat
+cd \path\to\RenPy-ImageForge
+start.bat
 ```
 
 `uv` automatically creates the venv and installs dependencies from
@@ -95,6 +103,7 @@ If upscaling is disabled: `original ──crop + resize──> output`.
 | `realesrgan-x4plus-anime` | Anime, high quality | 4 |
 
 On Apple Silicon inference uses **Metal** via MoltenVK (verified on M2).
+On Linux/Windows uses **Vulkan**.
 
 ## Project structure
 

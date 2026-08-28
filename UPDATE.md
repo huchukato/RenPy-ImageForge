@@ -6,7 +6,9 @@ All RenPy ImageForge releases with their respective release notes.
 
 ## v0.2.0 — 2026-08-28
 
-First public release of RenPy ImageForge.
+First public release of RenPy ImageForge — cross-platform tool
+(macOS, Linux, Windows) for batch image cropping, resizing, AI upscaling,
+and Ren'Py game integration.
 
 ### Features
 
@@ -70,13 +72,13 @@ First public release of RenPy ImageForge.
 - Custom app icon (logo)
 
 #### Infrastructure
+- Cross-platform: macOS, Linux, Windows
 - Launch with `uv` (automatic dependency and venv management)
-- `start.sh` to launch the app
+- `start.sh` (macOS/Linux) and `start.bat` (Windows) to launch the app
 - `build.sh` to create distributable packages
-  - macOS: .app + DMG + ZIP
-  - Linux: binary + TAR.GZ
-  - Windows: .exe + ZIP
-  - Source: TAR.GZ + ZIP (cross-platform)
+  - macOS: native .app + DMG
+  - Linux: source + TAR.GZ (with start.sh)
+  - Windows: source + ZIP (with start.bat)
 - `pyproject.toml` with dependencies and metadata
 - GitHub repo: https://github.com/huchukato/RenPy-ImageForge
 
@@ -89,12 +91,12 @@ First public release of RenPy ImageForge.
 - Fix smart upscale: AI no longer used for factors < 1.5x (LANCZOS is better)
 
 ### Requirements
-- macOS 11+ (Apple Silicon or Intel)
+- macOS 11+ (Apple Silicon or Intel), Linux, or Windows 10+
 - Python 3.10+ (managed by uv)
 - [uv](https://docs.astral.sh/uv/) for launching
 - Real-ESRGAN bundled in `vendor/` (no installation needed)
 
 ### Downloads
-- macOS DMG: `dist/RenPy-ImageForge-v0.2.0-macOS.dmg`
-- macOS ZIP: `dist/RenPy-ImageForge-v0.2.0-macOS.zip`
-- Source: `dist/RenPy-ImageForge-v0.2.0-source.tar.gz` / `.zip`
+- macOS: `dist/RenPy-ImageForge-v0.2.0-macOS.dmg` (native .app)
+- Linux: `dist/RenPy-ImageForge-v0.2.0-Linux.tar.gz` (source + start.sh)
+- Windows: `dist/RenPy-ImageForge-v0.2.0-Windows.zip` (source + start.bat)
