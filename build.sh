@@ -2,20 +2,18 @@
 # Build RenPy ImageForge: crea pacchetti per macOS, Linux e Windows.
 #
 # Nomi file generati (con versione letta da batch_cropper/__init__.py):
-#   RenPy-ImageForge-v0.2.0-macOS.dmg        (installer macOS)
-#   RenPy-ImageForge-v0.2.0-macOS.zip        (macOS generico)
-#   RenPy-ImageForge-v0.2.0-Linux.tar.gz     (binario Linux)
-#   RenPy-ImageForge-v0.2.0-Windows.zip      (binario Windows)
-#   RenPy-ImageForge-v0.2.0-source.tar.gz    (sorgente per Linux)
-#   RenPy-ImageForge-v0.2.0-source.zip       (sorgente per Windows)
+#   RenPy-ImageForge-v0.2.0-macOS.dmg        (installer macOS, buildato su macOS)
+#   RenPy-ImageForge-v0.2.0-Linux.tar.gz     (sorgente per Linux, con start.sh)
+#   RenPy-ImageForge-v0.2.0-Windows.zip      (sorgente per Windows, con start.bat)
 #
 # PyInstaller non puo' cross-compilare: ogni piattaforma va buildata
-# sulla piattaforma stessa.
+# sulla piattaforma stessa. I pacchetti sorgente sono cross-platform
+# e funzionano ovunque sia installato uv + Python 3.10+.
 #
 # Uso:
 #   ./build.sh              # build completa + pacchetti
-#   ./build.sh --mac-only   # solo macOS (DMG + ZIP)
-#   ./build.sh --source     # solo distribuzioni sorgente (cross-platform)
+#   ./build.sh --mac-only   # solo macOS (DMG)
+#   ./build.sh --source     # solo distribuzioni sorgente (Linux + Windows)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -137,14 +135,6 @@ package_macos() {
         -ov -format UDZO \
         "$DMG_PATH" 2>/dev/null
     echo "  DMG: $DMG_PATH"
-
-    # ZIP (macOS generico)
-    echo "  Creazione ZIP..."
-    local ZIP_PATH="$DIST_DIR/${PKG_PREFIX}-macOS.zip"
-    cd "$DIST_DIR"
-    zip -r -y "${PKG_PREFIX}-macOS.zip" "${APP_NAME}.app" 2>/dev/null
-    cd ..
-    echo "  ZIP: $ZIP_PATH"
 }
 
 package_linux() {
@@ -180,36 +170,42 @@ package_windows() {
 }
 
 # ---------------------------------------------------------------------------
-# 6. Distribuzione sorgente (cross-platform, sempre creata)
+# 6. Distribuzioni sorgente (Linux + Windows, sempre create)
 # ---------------------------------------------------------------------------
 package_source() {
-    echo "[6/6] Distribuzione sorgente (cross-platform)..."
+    echo "[6/6] Distribuzioni sorgente (Linux + Windows)..."
 
-    local SRC_DIR="$DIST_DIR/${PKG_NAME}-v${VERSION}-source"
-
-    # Copia i file sorgente (esclude build artifacts)
-    mkdir -p "$SRC_DIR"
+    # --- Pacchetto Linux (TAR.GZ con start.sh) ---
+    local LINUX_DIR="$DIST_DIR/${PKG_NAME}-v${VERSION}-Linux"
+    mkdir -p "$LINUX_DIR"
     rsync -a --exclude='.git' --exclude='.venv' --exclude='build' \
         --exclude='dist' --exclude='__pycache__' --exclude='*.spec' \
         --exclude='_entry.py' --exclude='.DS_Store' \
-        . "$SRC_DIR/"
+        --exclude='start.bat' \
+        . "$LINUX_DIR/"
 
-    # TAR.GZ (sorgente per Linux)
-    echo "  Creazione sorgente TAR.GZ..."
+    echo "  Creazione Linux TAR.GZ..."
     cd "$DIST_DIR"
-    tar -czf "${PKG_PREFIX}-source.tar.gz" "${PKG_NAME}-v${VERSION}-source" 2>/dev/null
+    tar -czf "${PKG_PREFIX}-Linux.tar.gz" "${PKG_NAME}-v${VERSION}-Linux" 2>/dev/null
     cd ..
-    echo "  TAR.GZ: $DIST_DIR/${PKG_PREFIX}-source.tar.gz"
+    echo "  TAR.GZ: $DIST_DIR/${PKG_PREFIX}-Linux.tar.gz"
+    rm -rf "$LINUX_DIR"
 
-    # ZIP (sorgente per Windows)
-    echo "  Creazione sorgente ZIP..."
+    # --- Pacchetto Windows (ZIP con start.bat) ---
+    local WIN_DIR="$DIST_DIR/${PKG_NAME}-v${VERSION}-Windows"
+    mkdir -p "$WIN_DIR"
+    rsync -a --exclude='.git' --exclude='.venv' --exclude='build' \
+        --exclude='dist' --exclude='__pycache__' --exclude='*.spec' \
+        --exclude='_entry.py' --exclude='.DS_Store' \
+        --exclude='start.sh' \
+        . "$WIN_DIR/"
+
+    echo "  Creazione Windows ZIP..."
     cd "$DIST_DIR"
-    zip -r -y "${PKG_PREFIX}-source.zip" "${PKG_NAME}-v${VERSION}-source" 2>/dev/null
+    zip -r -y "${PKG_PREFIX}-Windows.zip" "${PKG_NAME}-v${VERSION}-Windows" 2>/dev/null
     cd ..
-    echo "  ZIP: $DIST_DIR/${PKG_PREFIX}-source.zip"
-
-    # Pulisci cartella sorgente temporanea
-    rm -rf "$SRC_DIR"
+    echo "  ZIP: $DIST_DIR/${PKG_PREFIX}-Windows.zip"
+    rm -rf "$WIN_DIR"
 }
 
 # ---------------------------------------------------------------------------
@@ -218,14 +214,13 @@ package_source() {
 MODE="${1:-all}"
 
 if [ "$MODE" = "--source" ]; then
-    # Solo sorgente
+    # Solo sorgenti (Linux + Windows)
     package_source
 elif [ "$MODE" = "--mac-only" ]; then
     build_pyinstaller
     package_macos
-    package_source
 else
-    # Build completa: PyInstaller + packaging + sorgente
+    # Build completa: PyInstaller + packaging + sorgenti
     build_pyinstaller
 
     if [ "$PLATFORM" = "Darwin" ]; then
